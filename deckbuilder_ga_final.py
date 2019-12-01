@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import time,random,statistics,json,pickle
+import time,random,statistics,json,pickle,os
 
 # CONSTANTS
 GOAL = 17  # set to the total number of points possible in fitness function
@@ -37,7 +37,38 @@ def load_json(filename = 'ELD.json'):
     # print(len(all_cards), 'cards loaded')
     return all_cards
 
+def save_forge_data(data):
+    try:
+        os.mkdir("forge_data")
+    except:
+        print("forge_data directory exists")
+    os.chdir("forge_data")
+
+    # save the data in the necessary format
+    i = 0
+    while i < NUM_DECKS:
+        fname = 'deck' + str(i + 1) + '_' + "final_pop_forge.json"
+        deck = data[i]
+        with open(fname,'w',encoding = 'utf=8') as write_file:
+            for card in deck['cards']:
+                string = json.dumps(card['name']).replace('"', '')
+                write_file.write(string)
+                write_file.write('\n')
+        i += 1
+    os.chdir("..")
+
 def save_json(filename,data):
+    # write the json data
+    try:
+        os.mkdir("decks")
+    except:
+        print("decks directory exists")
+    os.chdir("decks")
+
+    if filename == "final_pop.json":
+        # put the data in a format forge can recognize
+        save_forge_data(data)
+
     # write the json data
     i = 0
     while i < NUM_DECKS:
@@ -47,6 +78,7 @@ def save_json(filename,data):
         with open(fname,'w',encoding = 'utf=8') as write_file:
             json.dump(deck['cards'],write_file)
         i += 1
+    os.chdir("..")
 
 def generate_booster_pool(option):
     '''Randomly build a pool of cards. Logic prevents pool from containing the same card twice.'''
@@ -204,7 +236,7 @@ def breed(deck_group_a,deck_group_b,deck_size,deck_uid):
             carda = decka['cards'][random.randint(0,len(decka) - 1)]
             cardb = deckb['cards'][random.randint(0,len(deckb) - 1)]
             d['cards'].append(carda)
-            d['cards'].append(cardb)r
+            d['cards'].append(cardb)
         children.append(d)
     return children,deck_uid
 
