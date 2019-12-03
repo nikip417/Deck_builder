@@ -4,8 +4,8 @@ import time,random,statistics,json,pickle,os
 
 # CONSTANTS
 GOAL = 17  # set to the total number of points possible in fitness function
-DECK_POOL_SIZE = 6 * 15  #need to increase to ensure filtered set has enough cards of each color for populate function
-DECK_SIZE = 40
+DECK_POOL_SIZE = 10 * 15  #need to increase to ensure filtered set has enough cards of each color for populate function
+DECK_SIZE = 60
 NUM_DECKS = 20  # of random decks to build, must be even number
 MUTATE_ODDS = 0.1
 GENERATION_LIMIT = 5000
@@ -25,7 +25,7 @@ def load(sFilename):
     f.close()
     return dObj
 
-def load_json(filename = 'ELD.json'):
+def load_json(filename = 'ELD_STRIPPED.json'):
     # read in the json data, parse into python list
 
     with open(filename,'r',encoding = 'utf=8') as read_file:
@@ -232,11 +232,36 @@ def breed(deck_group_a,deck_group_b,deck_size,deck_uid):
         deck_uid += 1
         d = {'deckno':deck_uid,'deckcolor':[],'cards':[],'fitness':0,'evasioncount':0,'creaturecount':0,'spellcount':0,\
              'bombcount':0,'landcount':0}
-        for child in range(deck_size // 2):
+
+        cards_in_deck = 0
+        while cards_in_deck < (deck_size):
             carda = decka['cards'][random.randint(0,len(decka) - 1)]
             cardb = deckb['cards'][random.randint(0,len(deckb) - 1)]
-            d['cards'].append(carda)
-            d['cards'].append(cardb)
+
+            # check to see if the card already exists in the deck then check the TODO: type and the land
+            if carda in d['cards']:
+                card = d['cards'][d['cards'].index(carda)]
+                if card['count'] <= 4 or "land" in card['type']:
+                    card['count'] = card['count'] + 1
+                    # print(card['count'])
+                    cards_in_deck = cards_in_deck + 1
+            else:
+                d['cards'].append(carda)
+                cards_in_deck = cards_in_deck + 1
+            
+            if cardb in d['cards']:
+                card = d['cards'][d['cards'].index(cardb)]
+                if card['count'] <= 4 or "land" in card['type']:
+                    card['count'] = card['count'] + 1
+                    cards_in_deck = cards_in_deck + 1
+                    # print(card['count'])
+            else:
+                d['cards'].append(cardb)
+                cards_in_deck = cards_in_deck + 1
+            # else:
+                # print("the current count of", d['cards'][d['cards'].index(carda)]['name'], "is", d['cards'][d['cards'].index(carda)]['count'])
+            
+            
         children.append(d)
     return children,deck_uid
 
@@ -310,13 +335,13 @@ def main():
     with open('fitness_history.txt', 'w') as fitness_file:
         for f in range(0, len(fitness_history)):
             fitness_file.write('Generation: '+str(f)+': Average population fitness: '+str(fitness_history[f])+'\n')
-            print('Generation:', f, ' Average population fitness: ', fitness_history[f])
+            # print('Generation:', f, ' Average population fitness: ', fitness_history[f])
     fitness_file.close()
-    print('\nDeck Statistics')
+    # print('\nDeck Statistics')
     with open('deck_stats.txt', 'w') as stats_file:
         for d in deck_stats:
             stats_file.write('%s\n' % d)
-            print(d)
+            # print(d)
     stats_file.close()
 
 if __name__ == '__main__':
