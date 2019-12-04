@@ -5,10 +5,10 @@ import time,random,statistics,json,pickle,os
 # CONSTANTS
 GOAL = 17  # set to the total number of points possible in fitness function
 DECK_POOL_SIZE = 6 * 15  #need to increase to ensure filtered set has enough cards of each color for populate function
-DECK_SIZE = 40
-NUM_DECKS = 20  # of random decks to build, must be even number
+DECK_SIZE = 90
+NUM_DECKS = 50 # of random decks to build, must be even number
 MUTATE_ODDS = 0.1
-GENERATION_LIMIT = 5000
+GENERATION_LIMIT = 25
 
 def save(dObj,sFilename):
     # Given an object and a file name, write the object to the file using pickle.
