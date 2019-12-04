@@ -4,11 +4,12 @@ import time,random,statistics,json,pickle,os
 
 # CONSTANTS
 GOAL = 17  # set to the total number of points possible in fitness function
-DECK_POOL_SIZE = 10 * 15  #need to increase to ensure filtered set has enough cards of each color for populate function
+DECK_POOL_SIZE = 15 * 15  #need to increase to ensure filtered set has enough cards of each color for populate function
 DECK_SIZE = 60
+LANDS_TO_ADD = 30
 NUM_DECKS = 20  # of random decks to build, must be even number
 MUTATE_ODDS = 0.1
-GENERATION_LIMIT = 5000
+GENERATION_LIMIT = 250
 
 def save(dObj,sFilename):
     # Given an object and a file name, write the object to the file using pickle.
@@ -25,17 +26,20 @@ def load(sFilename):
     f.close()
     return dObj
 
-def load_json(filename = 'ELD_STRIPPED.json'):
+def load_json(filename = 'ELD.json'):
     # read in the json data, parse into python list
-
     with open(filename,'r',encoding = 'utf=8') as read_file:
         data = json.load(read_file)
-
-    all_cards = []
+    land_cards = []
+    other_cards = []
     for card_name in data['cards']:
-        all_cards.append(card_name)
-    # print(len(all_cards), 'cards loaded')
-    return all_cards
+        if 'Land'not in card_name['type']:    #delete this line if you want to include lands
+            other_cards.append(card_name)
+        if 'Land' in card_name['type']:
+            #print(card_name['type'])
+            land_cards.append(card_name)
+    #print(len(other_cards), 'cards loaded')
+    return other_cards, land_cards
 
 def save_forge_data(data):
     try:
@@ -59,17 +63,6 @@ def save_forge_data(data):
 
 def save_json(filename,data):
     # write the json data
-    try:
-        os.mkdir("decks")
-    except:
-        print("decks directory exists")
-    os.chdir("decks")
-
-    if filename == "final_pop.json":
-        # put the data in a format forge can recognize
-        save_forge_data(data)
-
-    # write the json data
     i = 0
     while i < NUM_DECKS:
         fname = 'deck' + str(i + 1) + '_' + filename
@@ -78,20 +71,29 @@ def save_json(filename,data):
         with open(fname,'w',encoding = 'utf=8') as write_file:
             json.dump(deck['cards'],write_file)
         i += 1
-    os.chdir("..")
+
+def add_lands(population,lands):
+    for deck in population:
+        i = 0
+        while i < LANDS_TO_ADD:
+            n = random.randint(0, len(lands) - 1)
+            #print(lands[n], lands[n]['colors'])
+            #while lands[n]['colors'] not in deck['deckcolor']:
+            #    n = random.randint(0, len(lands) - 1)
+            deck['cards'].append(lands[n])
+            i += 1
+    return population
 
 def generate_booster_pool(option):
     '''Randomly build a pool of cards. Logic prevents pool from containing the same card twice.'''
     booster_pool = []
-    picked_cards = []
     if str(option).lower() == 'new':
-        cs = load_json()    #pass a filename to load_json() function to use a different card set
+        cs, ls = load_json()    #pass a filename to load_json() function to use a different card set
         t = 0
         while t < DECK_POOL_SIZE:
             i = random.randint(0,len(cs))
-            if cs[i - 1] not in picked_cards:
+            if cs[i - 1] not in booster_pool:
                 booster_pool.append(cs[i - 1])
-                picked_cards.append(cs[i - 1])
                 t += 1
         save(booster_pool,'booster_pool_pickled')
     else:
@@ -100,32 +102,11 @@ def generate_booster_pool(option):
         except:
             print('File not found')
 
-    return booster_pool
-
-def color_sets(set):
-    #TODO - not implemented, but possible improvement to force deck color combos
-    deck_color = ['W','B','G','U','R','']
-    filtered_set = []
-    for c in deck_color:
-        d = {'deckcolor':c,'cards':[]}
-        for card in set:
-            if c in card['colorIdentity']:
-                d['cards'].append(card)
-                #print_card(card)
-        filtered_set.append(d)
-
-    t = 0
-    for f in filtered_set:
-        print(len(f['cards']))
-        t += len(f['cards'])
-    print('total cards filtered: ',t)
-
-    return filtered_set
+    return booster_pool, ls
 
 def populate(cardpool):
     """Create an initial population of decks."""
     init_pop = []
-    #deck_color = ['W','B','G','U','R','']
     for i in range(1,NUM_DECKS + 1):
         ''' "d" establishes the data structure of the deck.  The fitness function
             will modify the "fitness' key value to something other than zero.
@@ -232,36 +213,11 @@ def breed(deck_group_a,deck_group_b,deck_size,deck_uid):
         deck_uid += 1
         d = {'deckno':deck_uid,'deckcolor':[],'cards':[],'fitness':0,'evasioncount':0,'creaturecount':0,'spellcount':0,\
              'bombcount':0,'landcount':0}
-
-        cards_in_deck = 0
-        while cards_in_deck < (deck_size):
+        for child in range(deck_size // 2):
             carda = decka['cards'][random.randint(0,len(decka) - 1)]
             cardb = deckb['cards'][random.randint(0,len(deckb) - 1)]
-
-            # check to see if the card already exists in the deck then check the TODO: type and the land
-            if carda in d['cards']:
-                card = d['cards'][d['cards'].index(carda)]
-                if card['count'] <= 4 or "land" in card['type']:
-                    card['count'] = card['count'] + 1
-                    # print(card['count'])
-                    cards_in_deck = cards_in_deck + 1
-            else:
-                d['cards'].append(carda)
-                cards_in_deck = cards_in_deck + 1
-            
-            if cardb in d['cards']:
-                card = d['cards'][d['cards'].index(cardb)]
-                if card['count'] <= 4 or "land" in card['type']:
-                    card['count'] = card['count'] + 1
-                    cards_in_deck = cards_in_deck + 1
-                    # print(card['count'])
-            else:
-                d['cards'].append(cardb)
-                cards_in_deck = cards_in_deck + 1
-            # else:
-                # print("the current count of", d['cards'][d['cards'].index(carda)]['name'], "is", d['cards'][d['cards'].index(carda)]['count'])
-            
-            
+            d['cards'].append(carda)
+            d['cards'].append(cardb)
         children.append(d)
     return children,deck_uid
 
@@ -281,16 +237,31 @@ def cull(population,to_retain):
 
 def mutate(population,boosterpool,mutate_odds):
     """Randomly swap a card in a given deck with one from the booster pool."""
-    # add logic to maintain color diversity
     for i in population:
         n = random.uniform(0,1)
-        # print(n)
         if mutate_odds >= n:
             card_from_deck = random.randint(0,len(i['cards']) - 1)
             new_card = random.randint(0,len(boosterpool) - 1)
             # print("Card before mutate: ", i['cards'][card_from_deck])
-            i['cards'][card_from_deck] = boosterpool[
-                new_card]  # print("Deck after mutate: ", i['cards'][card_from_deck])
+            i['cards'][card_from_deck] = boosterpool[new_card]  # print("Deck after mutate: ", i['cards'][card_from_deck])
+
+    '''This part of code was nessissary to force compliance with forge, mutates any card that occurs more than twice'''
+    for d in population:
+        cardcount = {}
+        for c in d['cards']:
+            if c['name'] not in cardcount:
+                dict = {c['name']:[d['cards'].index(c)]}
+                cardcount.update(dict)
+            else:
+                cardcount[c['name']].append(d['cards'].index(c))
+        for cc in cardcount:
+            if len(cardcount[cc]) > 2:
+                for ca in range(len(d['cards'])-1):
+                    if d['cards'][ca]['name'] == cc:
+                        swap_card = random.randint(0, len(boosterpool) - 1)
+                        while boosterpool[swap_card] in d['cards']:
+                            swap_card = random.randint(0, len(boosterpool) - 1)
+                        d['cards'][ca] = boosterpool[swap_card]
     return population
 
 def print_card(card):
@@ -309,9 +280,9 @@ def print_card(card):
 def main():
     fitness_history = []
     generation = 0
-    bp = generate_booster_pool('new')  # change to anything but new to force loading a pickle file
+    bp, lp = generate_booster_pool('new')  # change to anything but new to force loading a pickle file
     parents = populate(bp)
-    deck_stats =[]
+    deck_stats = []
     pop_fitness, deck_stats = fitness(parents, deck_stats)
     fitness_history.append(pop_fitness)
     deck_counter = len(parents)
@@ -325,23 +296,27 @@ def main():
         fitness_history.append(pop_fitness)
         generation += 1
 
+    #save forge data
+    fd = add_lands(parents, lp)
+    save_forge_data(fd)
+
     # print statistics
     if generation == GENERATION_LIMIT:
         print("\n=== Generation Limit Reached ===\n")
     elif pop_fitness == GOAL:
         print("\n=== Goal Reached ===\n")
     save_json('final_pop.json',parents)
-    print("\nFitness by generation :")
+    #print("\nFitness by generation :")
     with open('fitness_history.txt', 'w') as fitness_file:
         for f in range(0, len(fitness_history)):
             fitness_file.write('Generation: '+str(f)+': Average population fitness: '+str(fitness_history[f])+'\n')
-            # print('Generation:', f, ' Average population fitness: ', fitness_history[f])
+            #print('Generation:', f, ' Average population fitness: ', fitness_history[f])
     fitness_file.close()
-    # print('\nDeck Statistics')
+    #print('\nDeck Statistics')
     with open('deck_stats.txt', 'w') as stats_file:
         for d in deck_stats:
             stats_file.write('%s\n' % d)
-            # print(d)
+            #print(d)
     stats_file.close()
 
 if __name__ == '__main__':
